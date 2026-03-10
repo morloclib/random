@@ -1,0 +1,11 @@
+name: random
+version: 0.1.0
+homepage: https://github.com/morloclib/random
+synopsis: Random number generation
+description: Pseudo-random number generation, sampling, and shuffling with the Random effect.
+category: numeric
+license: MIT
+author: "Zebulun Arendsee"
+maintainer: "z@morloc.io"
+github: https://github.com/morloclib/random
+bug-reports: https://github.com/morloclib/random

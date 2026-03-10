@@ -1,0 +1,46 @@
+module random (*)
+
+import root
+
+
+-- Types that can be randomly generated
+class Random a where
+  -- Generate a random value with a type-appropriate default distribution
+  random a :: <Random> a
+
+-- Ordered types where uniform sampling over an interval makes sense
+class RandomRange a where
+  -- Generate a uniform random value in [lo, hi]
+  randomRange a :: a -> a -> <Random> a
+
+
+-- Random operations on containers
+class RandomGroup f where
+  -- Pick a uniform random element from a non-empty container
+  choice f a :: f a -> <Random> a
+
+  -- Pick from weighted alternatives (weights need not sum to 1)
+  weightedChoice f a :: f (Real, a) -> <Random> a
+
+  -- Pick n random elements without replacement (n <= container size)
+  sample f a :: Int -> f a -> <Random> f a
+
+  -- Pick n random elements with replacement (n may exceed container size)
+  sampleWith f a :: Int -> f a -> <Random> f a
+
+  -- Return a random permutation of the elements
+  permute f a :: f a -> <Random> f a
+
+
+-- Discrete primitives
+-----------------------
+
+-- Weighted coin flip: True with probability p
+bernoulli :: Real -> <Random> Bool
+
+
+-- Seeding
+-----------
+
+-- Set the random seed for reproducibility
+setSeed :: Int -> <Random> Unit
