@@ -1,0 +1,237 @@
+module random.test (test)
+
+import random
+import root
+
+type Py => Unit = "None"
+type Py => Int = "int"
+type Py => Str = "str"
+type Py => Real = "float"
+type Py => Bool = "bool"
+type Py => Tuple2 a b = "tuple" a b
+type Py => List a = "list" a
+
+-------------------------------------------------------------------------------
+-- Test framework functions
+
+source Py from "random-test.py"
+    ( "testEqual"
+    , "testTrue"
+    , "testInRange"
+    , "testLength"
+    , "testContains"
+    , "testSubset"
+    , "testSameElements"
+    , "testNoDuplicates"
+    , "printMsg"
+    , "printResult"
+    )
+
+testEqual
+    :: Str -> a -> a -> (Int, Int) -> (Int, Int)
+testTrue
+    :: Str -> Bool -> (Int, Int) -> (Int, Int)
+testInRange
+    :: Str -> a -> a -> a -> (Int, Int) -> (Int, Int)
+testLength
+    :: Str -> [a] -> Int -> (Int, Int) -> (Int, Int)
+testContains
+    :: Str -> [a] -> a -> (Int, Int) -> (Int, Int)
+testSubset
+    :: Str -> [a] -> [a] -> (Int, Int) -> (Int, Int)
+testSameElements
+    :: Str -> [a] -> [a] -> (Int, Int) -> (Int, Int)
+testNoDuplicates
+    :: Str -> [a] -> (Int, Int) -> (Int, Int)
+printMsg :: Str -> a -> a
+printResult :: (Int, Int) -> (Int, Int)
+
+-------------------------------------------------------------------------------
+-- Test infrastructure
+
+testGroup
+    :: Str
+    -> ((Int, Int) -> (Int, Int))
+    -> (Int, Int)
+    -> (Int, Int)
+testGroup msg tests = tests . printMsg msg
+
+passed :: (Int, Int) -> Bool
+passed t = 0 == (.0 t)
+
+test = runTests (0,0)
+
+-------------------------------------------------------------------------------
+-- Test suite
+
+runTests :: (Int, Int) -> Bool
+runTests =
+  ( passed
+  . printResult
+  . testGroup "Weighted Choice" testWeightedChoice
+  . testGroup "Permute" testPermute
+  . testGroup "Sample With Replacement" testSampleWith
+  . testGroup "Sample" testSample
+  . testGroup "Choice" testChoice
+  . testGroup "Bernoulli" testBernoulli
+  . testGroup "RandomRange Int" testRandomRangeInt
+  . testGroup "RandomRange Real" testRandomRangeReal
+  . testGroup "Random Real" testRandomReal
+  . testGroup "Seeding" testSeeding
+  )
+
+-------------------------------------------------------------------------------
+-- Seeding: same seed produces same value
+
+seededRandomReal1 :: <Random> Real
+seededRandomReal1 = do
+  setSeed 42
+  x <- random
+  x
+
+seededRandomReal2 :: <Random> Real
+seededRandomReal2 = do
+  setSeed 42
+  x <- random
+  x
+
+testSeeding :: (Int, Int) -> (Int, Int)
+testSeeding =
+  ( testEqual "same seed same value" !(seededRandomReal1) !(seededRandomReal2)
+  )
+
+-------------------------------------------------------------------------------
+-- Random Real: uniform [0, 1)
+
+seededRandomReal :: <Random> Real
+seededRandomReal = do
+  setSeed 100
+  x <- random
+  x
+
+testRandomReal :: (Int, Int) -> (Int, Int)
+testRandomReal =
+  ( testInRange "random Real in [0,1)" !(seededRandomReal) 0.0 1.0
+  )
+
+-------------------------------------------------------------------------------
+-- RandomRange Real
+
+seededRandomRangeReal :: <Random> Real
+seededRandomRangeReal = do
+  setSeed 200
+  x <- randomRange 10.0 20.0
+  x
+
+testRandomRangeReal :: (Int, Int) -> (Int, Int)
+testRandomRangeReal =
+  ( testInRange "randomRange 10..20" !(seededRandomRangeReal) 10.0 20.0
+  )
+
+-------------------------------------------------------------------------------
+-- RandomRange Int
+
+seededRandomRangeInt :: <Random> Int
+seededRandomRangeInt = do
+  setSeed 300
+  x <- randomRange 1 100
+  x
+
+testRandomRangeInt :: (Int, Int) -> (Int, Int)
+testRandomRangeInt =
+  ( testInRange "randomRange 1..100" !(seededRandomRangeInt) 1 100
+  )
+
+-------------------------------------------------------------------------------
+-- Bernoulli
+
+seededBernoulliZero :: <Random> Bool
+seededBernoulliZero = do
+  setSeed 400
+  x <- bernoulli 0.0
+  x
+
+seededBernoulliOne :: <Random> Bool
+seededBernoulliOne = do
+  setSeed 401
+  x <- bernoulli 1.0
+  x
+
+testBernoulli :: (Int, Int) -> (Int, Int)
+testBernoulli =
+  ( testEqual "bernoulli 1.0 always True" !(seededBernoulliOne) True
+  . testEqual "bernoulli 0.0 always False" !(seededBernoulliZero) False
+  )
+
+-------------------------------------------------------------------------------
+-- Choice
+
+seededChoice :: <Random> Int
+seededChoice = do
+  setSeed 500
+  x <- choice ([10, 20, 30, 40, 50] :: List Int)
+  x
+
+testChoice :: (Int, Int) -> (Int, Int)
+testChoice =
+  ( testContains "choice in list" [10, 20, 30, 40, 50] !(seededChoice)
+  )
+
+-------------------------------------------------------------------------------
+-- Sample
+
+seededSample :: <Random> [Int]
+seededSample = do
+  setSeed 600
+  x <- sample 3 ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] :: List Int)
+  x
+
+testSample :: (Int, Int) -> (Int, Int)
+testSample =
+  ( testNoDuplicates "sample no duplicates" !(seededSample)
+  . testSubset "sample subset" !(seededSample) [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  . testLength "sample length 3" !(seededSample) 3
+  )
+
+-------------------------------------------------------------------------------
+-- SampleWith
+
+seededSampleWith :: <Random> [Int]
+seededSampleWith = do
+  setSeed 700
+  x <- sampleWith 5 ([1, 2, 3] :: List Int)
+  x
+
+testSampleWith :: (Int, Int) -> (Int, Int)
+testSampleWith =
+  ( testSubset "sampleWith from input" !(seededSampleWith) [1, 2, 3]
+  . testLength "sampleWith length 5" !(seededSampleWith) 5
+  )
+
+-------------------------------------------------------------------------------
+-- Permute
+
+seededPermute :: <Random> [Int]
+seededPermute = do
+  setSeed 800
+  x <- permute ([5, 3, 1, 4, 2] :: List Int)
+  x
+
+testPermute :: (Int, Int) -> (Int, Int)
+testPermute =
+  ( testSameElements "permute same elements" !(seededPermute) [1, 2, 3, 4, 5]
+  )
+
+-------------------------------------------------------------------------------
+-- WeightedChoice
+
+seededWeightedChoice :: <Random> Str
+seededWeightedChoice = do
+  setSeed 900
+  x <- weightedChoice ([(0.5, "alpha"), (0.3, "beta"), (0.2, "gamma")] :: List (Real, Str))
+  x
+
+testWeightedChoice :: (Int, Int) -> (Int, Int)
+testWeightedChoice =
+  ( testContains "weightedChoice in values" ["alpha", "beta", "gamma"] !(seededWeightedChoice)
+  )
