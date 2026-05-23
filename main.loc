@@ -1,7 +1,8 @@
 module random (*)
 
-import root
+effect escapable Random
 
+import root
 
 -- Types that can be randomly generated
 class Random a where
