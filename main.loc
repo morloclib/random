@@ -1,6 +1,6 @@
 module random (*)
 
-effect escapable Random
+escapable effect Random
 
 import root
 
