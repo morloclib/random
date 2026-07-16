@@ -27,33 +27,25 @@ source Py from "random-test.py"
     , "printResult"
     )
 
-testEqual
-    :: Str -> a -> a -> (Int, Int) -> (Int, Int)
-testTrue
-    :: Str -> Bool -> (Int, Int) -> (Int, Int)
-testInRange
-    :: Str -> a -> a -> a -> (Int, Int) -> (Int, Int)
-testLength
-    :: Str -> [a] -> Int -> (Int, Int) -> (Int, Int)
-testContains
-    :: Str -> [a] -> a -> (Int, Int) -> (Int, Int)
-testSubset
-    :: Str -> [a] -> [a] -> (Int, Int) -> (Int, Int)
-testSameElements
-    :: Str -> [a] -> [a] -> (Int, Int) -> (Int, Int)
-testNoDuplicates
-    :: Str -> [a] -> (Int, Int) -> (Int, Int)
+testEqual :: Str -> a -> a -> (Int, Int) -> <Random> (Int, Int)
+testTrue :: Str -> Bool -> (Int, Int) -> <Random> (Int, Int)
+testInRange :: Str -> a -> a -> a -> (Int, Int) -> <Random> (Int, Int)
+testLength :: Str -> [a] -> Int -> (Int, Int) -> <Random> (Int, Int)
+testContains :: Str -> [a] -> a -> (Int, Int) -> <Random> (Int, Int)
+testSubset :: Str -> [a] -> [a] -> (Int, Int) -> <Random> (Int, Int)
+testSameElements :: Str -> [a] -> [a] -> (Int, Int) -> <Random> (Int, Int)
+testNoDuplicates :: Str -> [a] -> (Int, Int) -> <Random> (Int, Int)
 printMsg :: Str -> a -> a
-printResult :: (Int, Int) -> (Int, Int)
+printResult :: (Int, Int) -> <IO> (Int, Int)
 
 -------------------------------------------------------------------------------
 -- Test infrastructure
 
 testGroup
     :: Str
-    -> ((Int, Int) -> (Int, Int))
+    -> ((Int, Int) -> <Random> (Int, Int))
     -> (Int, Int)
-    -> (Int, Int)
+    -> <Random> (Int, Int)
 testGroup msg tests = tests . printMsg msg
 
 passed :: (Int, Int) -> Bool
@@ -64,21 +56,27 @@ test = runTests (0,0)
 -------------------------------------------------------------------------------
 -- Test suite
 
-runTests :: (Int, Int) -> Bool
-runTests =
-  ( passed
-  . printResult
-  . testGroup "Weighted Choice" testWeightedChoice
-  . testGroup "Permute" testPermute
-  . testGroup "Sample With Replacement" testSampleWith
-  . testGroup "Sample" testSample
-  . testGroup "Choice" testChoice
-  . testGroup "Bernoulli" testBernoulli
-  . testGroup "RandomRange Int" testRandomRangeInt
-  . testGroup "RandomRange Real" testRandomRangeReal
-  . testGroup "Random Real" testRandomReal
-  . testGroup "Seeding" testSeeding
-  )
+infixl 1 >>=
+(>>=) :: <e> a -> (a -> <e> b) -> <e> b
+(>>=) x f = do
+  x' <- x
+  f x'
+
+runTests :: (Int, Int) -> <Random,IO> Bool
+runTests x = do
+  result <-
+    testGroup "Seeding" testSeeding x >>=
+    testGroup "Random Real" testRandomReal >>=
+    testGroup "RandomRange Real" testRandomRangeReal >>=
+    testGroup "RandomRange Int" testRandomRangeInt >>=
+    testGroup "Bernoulli" testBernoulli >>=
+    testGroup "Choice" testChoice >>=
+    testGroup "Sample" testSample >>=
+    testGroup "Sample With Replacement" testSampleWith >>=
+    testGroup "Permute" testPermute >>=
+    testGroup "Weighted Choice" testWeightedChoice
+  printResult result
+  passed result
 
 -------------------------------------------------------------------------------
 -- Seeding: same seed produces same value
@@ -86,19 +84,17 @@ runTests =
 seededRandomReal1 :: <Random> Real
 seededRandomReal1 = do
   setSeed 42
-  x <- random
-  x
+  random
 
 seededRandomReal2 :: <Random> Real
 seededRandomReal2 = do
   setSeed 42
-  x <- random
-  x
+  random
 
-testSeeding :: (Int, Int) -> (Int, Int)
-testSeeding =
-  ( testEqual "same seed same value" !(seededRandomReal1) !(seededRandomReal2)
-  )
+testSeeding :: (Int, Int) -> <Random> (Int, Int)
+testSeeding x =
+  testEqual "same seed same value" !(seededRandomReal1) !(seededRandomReal2) x
+  
 
 -------------------------------------------------------------------------------
 -- Random Real: uniform [0, 1)
@@ -106,13 +102,12 @@ testSeeding =
 seededRandomReal :: <Random> Real
 seededRandomReal = do
   setSeed 100
-  x <- random
-  x
+  random
 
-testRandomReal :: (Int, Int) -> (Int, Int)
-testRandomReal =
-  ( testInRange "random Real in [0,1)" !(seededRandomReal) 0.0 1.0
-  )
+testRandomReal :: (Int, Int) -> <Random> (Int, Int)
+testRandomReal x =
+  testInRange "random Real in [0,1)" !(seededRandomReal) 0.0 1.0 x
+  
 
 -------------------------------------------------------------------------------
 -- RandomRange Real
@@ -120,13 +115,12 @@ testRandomReal =
 seededRandomRangeReal :: <Random> Real
 seededRandomRangeReal = do
   setSeed 200
-  x <- randomRange 10.0 20.0
-  x
+  randomRange 10.0 20.0
 
-testRandomRangeReal :: (Int, Int) -> (Int, Int)
-testRandomRangeReal =
-  ( testInRange "randomRange 10..20" !(seededRandomRangeReal) 10.0 20.0
-  )
+testRandomRangeReal :: (Int, Int) -> <Random> (Int, Int)
+testRandomRangeReal x =
+  testInRange "randomRange 10..20" !(seededRandomRangeReal) 10.0 20.0 x
+  
 
 -------------------------------------------------------------------------------
 -- RandomRange Int
@@ -134,13 +128,12 @@ testRandomRangeReal =
 seededRandomRangeInt :: <Random> Int
 seededRandomRangeInt = do
   setSeed 300
-  x <- randomRange 1 100
-  x
+  randomRange 1 100
 
-testRandomRangeInt :: (Int, Int) -> (Int, Int)
-testRandomRangeInt =
-  ( testInRange "randomRange 1..100" !(seededRandomRangeInt) 1 100
-  )
+testRandomRangeInt :: (Int, Int) -> <Random> (Int, Int)
+testRandomRangeInt x =
+  testInRange "randomRange 1..100" !(seededRandomRangeInt) 1 100 x
+  
 
 -------------------------------------------------------------------------------
 -- Bernoulli
@@ -148,20 +141,17 @@ testRandomRangeInt =
 seededBernoulliZero :: <Random> Bool
 seededBernoulliZero = do
   setSeed 400
-  x <- bernoulli 0.0
-  x
+  bernoulli 0.0
 
 seededBernoulliOne :: <Random> Bool
 seededBernoulliOne = do
   setSeed 401
-  x <- bernoulli 1.0
-  x
+  bernoulli 1.0
 
-testBernoulli :: (Int, Int) -> (Int, Int)
-testBernoulli =
-  ( testEqual "bernoulli 1.0 always True" !(seededBernoulliOne) True
-  . testEqual "bernoulli 0.0 always False" !(seededBernoulliZero) False
-  )
+testBernoulli :: (Int, Int) -> <Random> (Int, Int)
+testBernoulli x =
+  testEqual "bernoulli 1.0 always True" !(seededBernoulliOne) True x >>=
+  testEqual "bernoulli 0.0 always False" !(seededBernoulliZero) False
 
 -------------------------------------------------------------------------------
 -- Choice
@@ -169,13 +159,13 @@ testBernoulli =
 seededChoice :: <Random> Int
 seededChoice = do
   setSeed 500
-  x <- choice ([10, 20, 30, 40, 50] :: List Int)
-  x
+  choice ([10, 20, 30, 40, 50] :: List Int)
 
-testChoice :: (Int, Int) -> (Int, Int)
-testChoice =
-  ( testContains "choice in list" [10, 20, 30, 40, 50] !(seededChoice)
-  )
+testChoice :: (Int, Int) -> <Random> (Int, Int)
+testChoice xs = do
+  x <- seededChoice
+  testContains "choice in list" [10, 20, 30, 40, 50] x xs
+  
 
 -------------------------------------------------------------------------------
 -- Sample
@@ -183,15 +173,14 @@ testChoice =
 seededSample :: <Random> [Int]
 seededSample = do
   setSeed 600
-  x <- sample 3 ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] :: List Int)
-  x
+  sample 3 ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] :: List Int)
 
-testSample :: (Int, Int) -> (Int, Int)
-testSample =
-  ( testNoDuplicates "sample no duplicates" !(seededSample)
-  . testSubset "sample subset" !(seededSample) [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-  . testLength "sample length 3" !(seededSample) 3
-  )
+testSample :: (Int, Int) -> <Random> (Int, Int)
+testSample x =
+  testNoDuplicates "sample no duplicates" !(seededSample) x >>=
+  testSubset "sample subset" !(seededSample) [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] >>=
+  testLength "sample length 3" !(seededSample) 3
+  
 
 -------------------------------------------------------------------------------
 -- SampleWith
@@ -199,14 +188,13 @@ testSample =
 seededSampleWith :: <Random> [Int]
 seededSampleWith = do
   setSeed 700
-  x <- sampleWith 5 ([1, 2, 3] :: List Int)
-  x
+  sampleWith 5 ([1, 2, 3] :: List Int)
 
-testSampleWith :: (Int, Int) -> (Int, Int)
-testSampleWith =
-  ( testSubset "sampleWith from input" !(seededSampleWith) [1, 2, 3]
-  . testLength "sampleWith length 5" !(seededSampleWith) 5
-  )
+testSampleWith :: (Int, Int) -> <Random> (Int, Int)
+testSampleWith x =
+  testSubset "sampleWith from input" !(seededSampleWith) [1, 2, 3] x >>=
+  testLength "sampleWith length 5" !(seededSampleWith) 5
+  
 
 -------------------------------------------------------------------------------
 -- Permute
@@ -214,13 +202,12 @@ testSampleWith =
 seededPermute :: <Random> [Int]
 seededPermute = do
   setSeed 800
-  x <- permute ([5, 3, 1, 4, 2] :: List Int)
-  x
+  permute ([5, 3, 1, 4, 2] :: List Int)
 
-testPermute :: (Int, Int) -> (Int, Int)
-testPermute =
-  ( testSameElements "permute same elements" !(seededPermute) [1, 2, 3, 4, 5]
-  )
+testPermute :: (Int, Int) -> <Random> (Int, Int)
+testPermute prior =
+  testSameElements "permute same elements" !(seededPermute) [1, 2, 3, 4, 5] prior
+  
 
 -------------------------------------------------------------------------------
 -- WeightedChoice
@@ -228,10 +215,9 @@ testPermute =
 seededWeightedChoice :: <Random> Str
 seededWeightedChoice = do
   setSeed 900
-  x <- weightedChoice ([(0.5, "alpha"), (0.3, "beta"), (0.2, "gamma")] :: List (Real, Str))
-  x
+  weightedChoice ([(0.5, "alpha"), (0.3, "beta"), (0.2, "gamma")] :: List (Real, Str))
 
-testWeightedChoice :: (Int, Int) -> (Int, Int)
-testWeightedChoice =
-  ( testContains "weightedChoice in values" ["alpha", "beta", "gamma"] !(seededWeightedChoice)
-  )
+testWeightedChoice :: (Int, Int) -> <Random> (Int, Int)
+testWeightedChoice prior =
+  testContains "weightedChoice in values" ["alpha", "beta", "gamma"] !seededWeightedChoice prior
+  
