@@ -1,5 +1,5 @@
 name: random
-version: 0.3.0
+version: 0.4.0
 homepage: https://github.com/morloclib/random
 synopsis: Random number generation
 description: Pseudo-random number generation, sampling, and shuffling with the Random effect.
